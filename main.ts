@@ -3,7 +3,7 @@ namespace SpriteKind {
     export const BuildingAim = SpriteKind.create()
 }
 
-// --- Programmatic Tiles (No manual asset setup required) ---
+// --- Tile Textures ---
 const skyTile = img`
     6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6
     6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6
@@ -80,14 +80,25 @@ const stoneTile = img`
     b b b b b b b b b b c c b b b b
 `
 
-// --- Build Starting World (32x16 tiles) ---
+// --- Create 32x16 Tilemap Purely in Code ---
+const WORLD_COLS = 32
+const WORLD_ROWS = 16
+let mapData = Buffer.create(4 + WORLD_COLS * WORLD_ROWS)
+mapData.setNumber(NumberFormat.UInt16LE, 0, WORLD_COLS)
+mapData.setNumber(NumberFormat.UInt16LE, 2, WORLD_ROWS)
+
 scene.setBackgroundColor(6)
-tiles.setTilemap(tilemap`level1`)
+tiles.setTilemap(tiles.createTilemap(
+    mapData,
+    image.create(WORLD_COLS, WORLD_ROWS),
+    [skyTile, grassTile, dirtTile, stoneTile],
+    TileScale.Sixteen
+))
 
 function generateWorld() {
-    for (let col = 0; col < 32; col++) {
+    for (let col = 0; col < WORLD_COLS; col++) {
         let surfaceRow = 9 + Math.floor(Math.sin(col * 0.4) * 1.5)
-        for (let row = 0; row < 16; row++) {
+        for (let row = 0; row < WORLD_ROWS; row++) {
             let loc = tiles.getTileLocation(col, row)
             if (row < surfaceRow) {
                 tiles.setTileAt(loc, skyTile)
@@ -145,13 +156,13 @@ let Steve = sprites.create(img`
 Steve.ay = 350
 controller.moveSprite(Steve, 80, 0)
 scene.cameraFollowSprite(Steve)
-info.setScore(5) // Start with 5 blocks
+info.setScore(5)
 
 let BuildingMode = false
 let BuildingAim: Sprite = null
 let FacingRight = true
 
-// --- Controls: Jump & Build Toggle ---
+// --- Controls ---
 controller.up.onEvent(ControllerButtonEvent.Pressed, function () {
     if (!BuildingMode && Steve.isHittingTile(CollisionDirection.Bottom)) {
         Steve.vy = -165
@@ -236,7 +247,7 @@ sprites.onOverlap(SpriteKind.Block, SpriteKind.Player, function (sprite, otherSp
     info.changeScoreBy(1)
 })
 
-// --- 8-Directional Pickaxe Swing (Hold B) ---
+// --- Pickaxe Swing (Hold B) ---
 forever(function () {
     if (controller.B.isPressed() && !BuildingMode) {
         let vx = 0
@@ -246,7 +257,6 @@ forever(function () {
         if (controller.up.isPressed()) vy = -40
         else if (controller.down.isPressed()) vy = 40
 
-        // Default to facing direction if no D-pad direction is held
         if (vx == 0 && vy == 0) {
             vx = FacingRight ? 40 : -40
         }
@@ -266,6 +276,5 @@ forever(function () {
     pause(250)
 })
 
-// Note: Create a 32x16 empty tilemap named "level1" in the Tilemap editor first!
 generateWorld()
 tiles.placeOnTile(Steve, tiles.getTileLocation(4, 5))
